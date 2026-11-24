@@ -1,24 +1,24 @@
-# Machine learning intrusion detection on NSL-KDD
+# network intrusion detection with NSL-KDD
 
-## Why flag network connections?
+## what i wanted to find out
 
-Suppose a company sets an alert for transfers over 10 GB. A scheduled 20 GB backup would trigger it every night, while a malicious 8 GB transfer would slip through. Rules still make sense for known signatures. For this experiment, the question was whether a model could use several details together, such as the service, connection duration, and bytes transferred, to flag connections for an analyst to review.
+say a company sets an alert for transfers over 10 GB. a scheduled 20 GB backup would raise it every night. a malicious 8 GB transfer would go through without an alert. rules are still useful when the team knows the signature to look for. i wanted to see how much a model could pick up from a few details together, like the service, duration and bytes transferred.
 
-## Data and preprocessing
+## data and prep
 
-NSL-KDD provides 125,973 training rows and 22,544 test rows. The training split contains 67,343 normal and 58,630 malicious connections. The notebook found zero duplicate full rows and no missing or non-finite values, so it kept the supplied partitions without imputation or row removal. It removed the target label and the benchmark difficulty score from the inputs and kept all 41 measured features. It mapped normal to 0 and every attack category to 1.
+i used the two splits that come with NSL-KDD. there were 125,973 training rows and 22,544 test rows. each row describes one connection. i checked both files for duplicate rows, missing values and non-finite numbers. those checks passed, so i kept the rows as supplied.
 
-Protocol, service, and flag are unordered categories, so the notebook one-hot encoded them. It standardized the remaining features to make their scales comparable during fitting. It learned the encoding and scaling exclusively on the training split. [Dataset and paper attribution](../README.md#dataset-attribution)
+i kept all 41 measured features and left out the label and difficulty score. the label is the answer, and difficulty is specific to the benchmark. for the target, normal is 0 and any attack is 1. i gave each protocol, service and flag value its own indicator. i scaled the numeric columns using the training data and applied the same transformations to the test data. [dataset and paper](../README.md#dataset-attribution)
 
-![Training class distribution](../deliverables/training-class-distribution.png)
+![training class distribution](../deliverables/training-class-distribution.png)
 
-Normal is the majority training class, which explains why the baseline always predicts normal.
+there were 67,343 normal connections and 58,630 malicious ones in training. that's why the majority baseline predicts normal every time.
 
-## Models
+## what i ran
 
-The simplest thing to try was predicting the most common training label for every connection. That gave us a baseline. Logistic regression then gave each feature a learned weight and used the combined score to estimate the probability of a malicious connection.
+i started with the majority baseline to see what accuracy looked like without using any connection details. then i used logistic regression since it's a simple way to give each feature a weight and turn the combined score into a probability.
 
-The scikit-learn model was fit once using the supplied training split. The CPU PyTorch comparison uses the same training-fitted transformations and a single linear output trained for ten epochs with binary cross-entropy and AdamW. Both classify at a probability cutoff of 0.5. [Executed notebook](../deliverables/train.ipynb)
+i also tried a single linear layer in PyTorch with the same prepared features. it ran for 10 epochs with binary cross-entropy and AdamW. both models used a cutoff of 0.5. [executed notebook](../deliverables/train.ipynb)
 
 ```python
 logistic.fit(X_train, y_train)
@@ -26,26 +26,26 @@ logistic_predictions = logistic.predict(X_test)
 matrix = confusion_matrix(y_test, logistic_predictions, labels=[0, 1])
 ```
 
-The scikit-learn solver used 159 iterations. PyTorch mean training loss fell from 0.1840 in epoch one to 0.0762 in epoch ten.
+scikit-learn finished in 159 solver iterations. in PyTorch, the average training loss went from 0.1840 in the first epoch to 0.0762 in the tenth.
 
-## Test results
+## what the results showed
 
-| Model | Accuracy | Precision | Recall | F1 |
+| model | accuracy | precision | recall | F1 |
 | --- | ---: | ---: | ---: | ---: |
-| Majority baseline | 43.08% | 0.00% | 0.00% | 0.00% |
-| Scikit-learn logistic regression | 75.37% | 91.75% | 62.33% | 74.23% |
+| majority baseline | 43.08% | 0.00% | 0.00% | 0.00% |
+| scikit-learn logistic regression | 75.37% | 91.75% | 62.33% | 74.23% |
 | PyTorch linear classifier | 75.23% | 91.80% | 62.03% | 74.03% |
 
-The majority baseline raised zero alerts, so the table reports its undefined precision as zero. With scikit-learn, 7,999 of the 8,718 alerts were correct. An analyst would still have to look through 719 false alarms. The bigger issue was what the alert queue never showed. The model missed 4,834 of the 12,833 malicious connections.
+the baseline raised zero alerts, so its precision is undefined and shown as zero. with scikit-learn, 7,999 of the 8,718 alerts were correct. that still leaves 719 false alarms for someone to look through. it also missed 4,834 of the 12,833 malicious connections. that's the part i'd pay most attention to before using it on a real network.
 
-![Scikit-learn test confusion matrix](../deliverables/test-confusion-matrix.png)
+![test confusion matrix for scikit-learn](../deliverables/test-confusion-matrix.png)
 
-PyTorch gave almost the same result, with recall about 0.3 percentage points lower. The scikit-learn fit took 4.13 seconds including preprocessing. PyTorch training took 4.99 seconds after preprocessing. Those numbers describe one CPU run with different timing boundaries.
+PyTorch caught about the same share of malicious connections. scikit-learn took 4.13 seconds with preprocessing included. PyTorch took 4.99 seconds after preprocessing. that's one CPU run, and the two timings cover different work.
 
-## Deployment and limitations
+## how i'd try it on a company network
 
-On a company network, a sensor would summarize connections and send them to the model. Flagged connections would go to the SIEM with enough detail for an analyst to investigate. During a trial, the firewall could stay in its usual mode while analysts check the alerts. The first practical question is whether the sensor even sees the fields the model expects. A flow-only sensor may have byte counts and duration, for example, but no login outcomes.
+i'd have a network sensor summarize connections and send those summaries to the model. flagged connections would go to the SIEM for someone to review. i'd leave the firewall blocking policy alone while checking how many alerts are useful. i'd also check what the sensor can actually see. it may have byte counts and duration, but no login outcomes.
 
-New applications and network migrations can cause concept drift. Track feature distributions and analyst-reviewed outcomes. Validate sensor inputs and corroborate uncertain alerts across independent sources to reduce risk from intentionally manipulated inputs. For scalability, measure feature extraction and scoring latency under peak throughput and track queues and dropped records.
+a new app can change what normal traffic looks like. i'd watch for that kind of drift by tracking feature values and what analysts find when they review alerts. if someone deliberately manipulates the input, i'd check the sensor data and look for the same activity in another source. i'd also measure scoring time, queue size and dropped records when traffic spikes.
 
-The historical NSL-KDD split supports a reproducible model comparison. Production adoption would require evaluation on current, representative traffic, including how often malicious connections occur and how many alerts analysts can review.
+NSL-KDD gave me a fixed split for comparing the models. before using either one, i'd test it on recent traffic from the actual network and check whether the team can keep up with the alerts.
