@@ -1,8 +1,8 @@
 # Machine learning intrusion detection on NSL-KDD
 
-## Problem
+## Why flag network connections?
 
-Enterprise security analysts need to identify suspicious connections in a stream of routine traffic. A fixed byte threshold can flag a legitimate backup and miss a smaller malicious connection. Rules remain useful for known signatures and explicit policies. A supervised classifier can combine multiple features learned from labeled examples. The classifier in this experiment assigns a normal or malicious label to each connection summary. An analyst would investigate connections flagged as malicious.
+Suppose a company sets an alert for transfers over 10 GB. A scheduled 20 GB backup would trigger it every night, while a malicious 8 GB transfer would slip through. Rules still make sense for known signatures. For this experiment, the question was whether a model could use several details together, such as the service, connection duration, and bytes transferred, to flag connections for an analyst to review.
 
 ## Data and preprocessing
 
@@ -10,15 +10,15 @@ NSL-KDD provides 125,973 training rows and 22,544 test rows. The training split 
 
 Protocol, service, and flag are unordered categories, so the notebook one-hot encoded them. It standardized the remaining features to make their scales comparable during fitting. It learned the encoding and scaling exclusively on the training split. [Dataset and paper attribution](../README.md#dataset-attribution)
 
-![Training class distribution](figures/training-class-distribution.png)
+![Training class distribution](../deliverables/training-class-distribution.png)
 
 Normal is the majority training class, which explains why the baseline always predicts normal.
 
 ## Models
 
-The baseline predicts the most frequent training class. Logistic regression learns a weighted combination of the transformed features. Its sigmoid converts that score to a probability estimate. It was selected as a compact, interpretable starting point for binary tabular classification.
+The simplest thing to try was predicting the most common training label for every connection. That gave us a baseline. Logistic regression then gave each feature a learned weight and used the combined score to estimate the probability of a malicious connection.
 
-The scikit-learn model was fit once using the supplied training split. The CPU PyTorch comparison uses the same training-fitted transformations and a single linear output trained for ten epochs with binary cross-entropy and AdamW. Both classify at a probability cutoff of 0.5. [Executed notebook](../train.ipynb)
+The scikit-learn model was fit once using the supplied training split. The CPU PyTorch comparison uses the same training-fitted transformations and a single linear output trained for ten epochs with binary cross-entropy and AdamW. Both classify at a probability cutoff of 0.5. [Executed notebook](../deliverables/train.ipynb)
 
 ```python
 logistic.fit(X_train, y_train)
@@ -36,15 +36,15 @@ The scikit-learn solver used 159 iterations. PyTorch mean training loss fell fro
 | Scikit-learn logistic regression | 75.37% | 91.75% | 62.33% | 74.23% |
 | PyTorch linear classifier | 75.23% | 91.80% | 62.03% | 74.03% |
 
-The majority baseline issued zero alerts, so its precision is reported as zero by convention. Scikit-learn correctly flagged 7,999 malicious connections and generated 719 false positives. The false positives would consume analyst time. The 4,834 false negatives represent malicious connections that would receive no alert from this classifier.
+The majority baseline raised zero alerts, so the table reports its undefined precision as zero. With scikit-learn, 7,999 of the 8,718 alerts were correct. An analyst would still have to look through 719 false alarms. The bigger issue was what the alert queue never showed. The model missed 4,834 of the 12,833 malicious connections.
 
-![Scikit-learn test confusion matrix](figures/test-confusion-matrix.png)
+![Scikit-learn test confusion matrix](../deliverables/test-confusion-matrix.png)
 
-Recall is 7,999 divided by the 12,833 malicious test connections. Precision uses the 8,718 flagged connections as its denominator. The two linear models achieved similar scores. The observed CPU times were 4.13 seconds for scikit-learn fitting with preprocessing and 4.99 seconds for PyTorch training after preprocessing. These timings cover different work and describe one run.
+PyTorch gave almost the same result, with recall about 0.3 percentage points lower. The scikit-learn fit took 4.13 seconds including preprocessing. PyTorch training took 4.99 seconds after preprocessing. Those numbers describe one CPU run with different timing boundaries.
 
 ## Deployment and limitations
 
-A network sensor would compute connection summaries and hand them to the scoring service. The service would send alerts and supporting fields to a SIEM, where analysts can review the evidence. Start in observation mode and measure alert quality before using a firewall to act on reviewed alerts. Confirm that production instrumentation can actually compute the training features. A flow-only sensor, for example, may lack login outcome information.
+On a company network, a sensor would summarize connections and send them to the model. Flagged connections would go to the SIEM with enough detail for an analyst to investigate. During a trial, the firewall could stay in its usual mode while analysts check the alerts. The first practical question is whether the sensor even sees the fields the model expects. A flow-only sensor may have byte counts and duration, for example, but no login outcomes.
 
 New applications and network migrations can cause concept drift. Track feature distributions and analyst-reviewed outcomes. Validate sensor inputs and corroborate uncertain alerts across independent sources to reduce risk from intentionally manipulated inputs. For scalability, measure feature extraction and scoring latency under peak throughput and track queues and dropped records.
 

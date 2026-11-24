@@ -2,10 +2,10 @@
 
 This project compares a majority baseline, scikit-learn logistic regression, and a PyTorch linear classifier on the NSL-KDD network intrusion detection benchmark.
 
-- [Executed notebook](train.ipynb)
+- [Executed notebook](deliverables/train.ipynb)
 - [Assignment](docs/ML_CyberSecurity_Assignment.md)
 - [Learning guide](docs/LEARNING_GUIDE.md)
-- [Report](docs/REPORT.md)
+- [Report](deliverables/REPORT.docx)
 
 ## Reproduce the notebook
 
@@ -16,7 +16,7 @@ mkdir -p data
 curl -fL 'https://raw.githubusercontent.com/defcom17/NSL_KDD/master/KDDTrain%2B.txt' -o 'data/KDDTrain+.txt'
 curl -fL 'https://raw.githubusercontent.com/defcom17/NSL_KDD/master/KDDTest%2B.txt' -o 'data/KDDTest+.txt'
 uv sync --locked --group torch
-uv run --locked --group torch jupyter execute --inplace train.ipynb
+uv run --locked --group torch jupyter execute --inplace deliverables/train.ipynb
 ```
 
 You can also open the notebook in an editor, select the project’s `.venv` as the kernel, and run all cells. Omit `--group torch` from the uv commands for the scikit-learn-only run.
