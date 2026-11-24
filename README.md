@@ -9,7 +9,7 @@ This project compares a majority baseline, scikit-learn logistic regression, and
 
 ## Reproduce the notebook
 
-Open `deliverables/train.ipynb` in a Python 3.10+ Jupyter kernel and run all cells. The notebook installs missing core packages, downloads and verifies both NSL-KDD files, and writes the plots beside the notebook when launched from its folder. The first run needs internet access and a writable working directory. PyTorch is optional.
+Open `deliverables/train.ipynb` in a Python 3.10+ Jupyter kernel and run all cells. If your kernel is missing packages, uncomment the install line in the first code cell and run it. The notebook downloads and verifies both NSL-KDD files and saves the plots. The first run needs internet access and a writable working directory. PyTorch is optional.
 
 To run both models with the repository's locked environment, run this from the repository root.
 
