@@ -9,17 +9,14 @@ This project compares a majority baseline, scikit-learn logistic regression, and
 
 ## Reproduce the notebook
 
-From the repository root, download both text files to `data/` and keep the provided split. This mirror provides comma-separated copies with the original labels and difficulty field. [NSL-KDD file mirror](https://github.com/defcom17/NSL_KDD)
+Open `deliverables/train.ipynb` in a Python 3.10+ Jupyter kernel and run all cells. The notebook installs missing core packages, downloads and verifies both NSL-KDD files, and writes the plots beside the notebook when launched from its folder. The first run needs internet access and a writable working directory. PyTorch is optional.
+
+To run both models with the repository's locked environment, run this from the repository root.
 
 ```sh
-mkdir -p data
-curl -fL 'https://raw.githubusercontent.com/defcom17/NSL_KDD/master/KDDTrain%2B.txt' -o 'data/KDDTrain+.txt'
-curl -fL 'https://raw.githubusercontent.com/defcom17/NSL_KDD/master/KDDTest%2B.txt' -o 'data/KDDTest+.txt'
 uv sync --locked --group torch
 uv run --locked --group torch jupyter execute --inplace deliverables/train.ipynb
 ```
-
-You can also open the notebook in an editor, select the project’s `.venv` as the kernel, and run all cells. Omit `--group torch` from the uv commands for the scikit-learn-only run.
 
 ## Dataset attribution
 
